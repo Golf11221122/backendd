@@ -1,0 +1,926 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+ <meta charset="utf-8" />
+ <meta name="viewport" content="width=device-width, initial-scale=1" />
+ <title>POS Backoffice — Dashboard</title>
+
+ <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+ <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+ <style>
+  /* Minimal modern dark/grey/white theme (responsive) */
+  :root {
+   --bg: #0f1724;
+   --card: #0b1220;
+   --muted: #9aa3b2;
+   --accent: #111827;
+   --white: #ffffff;
+   --glass: rgba(255, 255, 255, 0.03);
+   --glass-2: rgba(255, 255, 255, 0.04);
+   --accent-2: #111827;
+   --primary: #f3f4f6;
+   --success: #10b981;
+  }
+
+  html,
+  body {
+   height: 100%;
+   margin: 0;
+   font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial;
+  }
+
+  body {
+   background: linear-gradient(180deg, #31466b 0%, #071021 60%);
+   color: var(--primary);
+   -webkit-font-smoothing: antialiased;
+   -moz-osx-font-smoothing: grayscale;
+   padding: 18px;
+   box-sizing: border-box;
+  }
+
+  .app {
+   max-width: 1200px;
+   margin: 0 auto;
+  }
+
+  header {
+   display: flex;
+   gap: 12px;
+   align-items: center;
+   margin-bottom: 18px;
+   justify-content: space-between;
+  }
+
+  .brand {
+   display: flex;
+   gap: 12px;
+   align-items: center
+  }
+
+  .logo {
+   width: 44px;
+   height: 44px;
+   border-radius: 8px;
+   background: #fff;
+   color: #111;
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   font-weight: 700;
+  }
+
+  .title {
+   font-size: 1.15rem;
+   font-weight: 700
+  }
+
+  .subtitle {
+   font-size: 0.85rem;
+   color: var(--muted)
+  }
+
+  /* layout */
+  .main {
+   display: grid;
+   grid-template-columns: 260px 1fr;
+   gap: 16px;
+  }
+
+  .panel {
+   background: linear-gradient(180deg, var(--card), #2252a3);
+   border-radius: 12px;
+   padding: 14px;
+   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.5);
+   border: 1px solid rgba(255, 255, 255, 0.03);
+  }
+
+  /* sidebar */
+  .sidebar .user {
+   display: flex;
+   gap: 10px;
+   align-items: center;
+   padding-bottom: 12px;
+   border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+   margin-bottom: 12px;
+  }
+
+  .avatar {
+   width: 44px;
+   height: 44px;
+   border-radius: 8px;
+   background: linear-gradient(90deg, #6e6a6rgba(51, 51, 51, 0.247)333);
+   display: flex;
+   align-items: center;
+   justify-content: center;
+   font-weight: 700
+  }
+
+  .nav {
+   display: flex;
+   flex-direction: column;
+   gap: 8px;
+   margin-top: 10px
+  }
+
+  .nav button {
+   background: transparent;
+   border: none;
+   color: var(--primary);
+   padding: 10px;
+   border-radius: 8px;
+   text-align: left;
+   cursor: pointer
+  }
+
+  .nav button.active {
+   background: linear-gradient(90deg, rgba(255, 255, 255, 0.03), rgba(255, 255, 255, 0.02));
+   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02)
+  }
+
+  .small {
+   font-size: 0.85rem;
+   color: var(--muted)
+  }
+
+  /* content */
+  .content-grid {
+   display: grid;
+   grid-template-columns: repeat(2, 1fr);
+   gap: 12px;
+   margin-bottom: 12px;
+  }
+
+  .card {
+   padding: 12px;
+   border-radius: 10px;
+   background: var(--glass);
+   border: 1px solid rgba(255, 255, 255, 0.03)
+  }
+
+  .kpi {
+   display: flex;
+   justify-content: space-between;
+   align-items: center;
+   gap: 8px
+  }
+
+  .kpi .num {
+   font-weight: 800;
+   font-size: 1.4rem
+  }
+
+  .table {
+   width: 100%;
+   border-collapse: collapse
+  }
+
+  .table th,
+  .table td {
+   padding: 8px;
+   border-bottom: 1px dashed rgba(255, 255, 255, 0.04);
+   font-size: 0.95rem
+  }
+
+  .muted {
+   color: var(--muted);
+   font-size: 0.9rem
+  }
+
+  .btn {
+   background: #727680;
+   color: white;
+   border: none;
+   padding: 8px 12px;
+   border-radius: 8px;
+   cursor: pointer
+  }
+
+  .btn.ghost {
+   background: transparent;
+   border: 1px solid rgba(255, 255, 255, 0.04)
+  }
+
+  .right {
+   text-align: right
+  }
+
+  .fullwidth {
+   width: 100%
+  }
+
+  .search {
+   padding: 8px;
+   border-radius: 8px;
+   border: 1px solid rgba(255, 255, 255, 0.04);
+   background: transparent;
+   color: var(--primary)
+  }
+
+  footer {
+   margin-top: 18px;
+   color: var(--muted);
+   font-size: 0.85rem;
+   text-align: center
+  }
+
+  /* responsive */
+  @media (max-width:900px) {
+   .main {
+    grid-template-columns: 1fr;
+   }
+
+   .content-grid {
+    grid-template-columns: 1fr;
+   }
+  }
+
+  /* simple modal */
+  .modal-backdrop {
+   position: fixed;
+   inset: 0;
+   background: rgba(0, 0, 0, 0.6);
+   display: none;
+   align-items: center;
+   justify-content: center;
+   z-index: 30
+  }
+
+  .modal {
+   width: 460px;
+   max-width: 95%;
+   background: linear-gradient(180deg, #1d4574, #0a121b);
+   padding: 18px;
+   border-radius: 12px;
+   border: 1px solid rgba(255, 255, 255, 0.04)
+  }
+
+  .form-row {
+   display: flex;
+   gap: 8px;
+   margin-bottom: 10px
+  }
+
+  .form-row input,
+  .form-row select {
+   flex: 1;
+   padding: 10px;
+   border-radius: 8px;
+   border: 1px solid rgba(255, 255, 255, 0.04);
+   background: transparent;
+   color: var(--primary)
+  }
+
+  .hint {
+   font-size: 0.82rem;
+   color: var(--muted)
+  }
+ </style>
+</head>
+
+<body>
+ <div class="app">
+  <header>
+   <div class="brand">
+    <div class="logo">POS</div>
+    <div>
+     <div class="title">POS Backoffice</div>
+     <div class="subtitle">ระบบหลังร้าน — เชื่อม Supabase</div>
+    </div>
+   </div>
+
+   <div id="userControls">
+    <button class="btn ghost" id="btnOpenAuth">Sign In / Register</button>
+   </div>
+  </header>
+
+  <div class="main">
+   <aside class="panel sidebar">
+    <div class="user">
+     <div class="avatar" id="avatar">G</div>
+     <div>
+      <div id="staffName" style="font-weight:700">Guest</div>
+      <div class="muted" id="staffBranch">Not signed</div>
+     </div>
+    </div>
+
+    <div class="nav">
+     <button class="active" data-view="dashboard">Dashboard</button>
+     <button data-view="sales">Sales</button>
+     <button data-view="inventory">Inventory</button>
+     <button data-view="reports">Reports</button>
+     <button data-view="settings">Settings</button>
+     <div style="height:8px"></div>
+     <button id="btnSignOut" style="color:#ffdddd" class="ghost">Sign Out</button>
+    </div>
+   </aside>
+
+   <main>
+    <section id="view-dashboard" class="panel" style="display:block">
+     <div style="display:flex;justify-content:space-between;align-items:center;gap:12px">
+      <div>
+       <h2 style="margin:0">Dashboard</h2>
+       <div class="hint">ภาพรวมยอดขายและสต็อก — สาขา: <span id="currentBranchLabel">-</span></div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+       <input id="dateFrom" class="search" type="date" /> <input id="dateTo" class="search" type="date" />
+       <button class="btn" id="refreshBtn">Refresh</button>
+      </div>
+     </div>
+
+     <div class="content-grid" style="margin-top:12px">
+      <div class="card">
+       <div class="kpi">
+        <div>
+         <div class="muted">ยอดขายวันนี้</div>
+         <div class="num" id="kpiSalesToday">-</div>
+        </div>
+        <div class="muted">฿</div>
+       </div>
+       <div style="height:12px"></div>
+       <div class="muted">ยอดเดือนนี้: <strong id="kpiSalesMonth">-</strong></div>
+      </div>
+
+      <div class="card">
+       <div class="kpi">
+        <div>
+         <div class="muted">สต็อกคงเหลือ (รวม)</div>
+         <div class="num" id="kpiStockTotal">-</div>
+        </div>
+        <div class="muted">ชิ้น</div>
+       </div>
+       <div style="height:12px"></div>
+       <div class="muted">สินค้าหมด: <strong id="kpiStockZero">-</strong></div>
+      </div>
+
+      <div class="card" style="grid-column:span 2">
+       <h3 style="margin:0 0 8px 0">ยอดขายย้อนหลัง (7 วัน)</h3>
+       <canvas id="salesChart" height="100"></canvas>
+      </div>
+
+      <div class="card">
+       <h4 style="margin-top:0">Top 5 เมนู</h4>
+       <table class="table" id="topMenuTable">
+        <thead>
+         <tr>
+          <th>เมนู</th>
+          <th class="right">จำนวน</th>
+         </tr>
+        </thead>
+        <tbody></tbody>
+       </table>
+      </div>
+
+      <div class="card">
+       <h4 style="margin-top:0">รายการล่าสุด</h4>
+       <table class="table" id="recentSalesTable">
+        <thead>
+         <tr>
+          <th>เวลา</th>
+          <th>ยอด</th>
+          <th>วิธี</th>
+         </tr>
+        </thead>
+        <tbody></tbody>
+       </table>
+      </div>
+     </div>
+    </section>
+
+    <div class="modal-backdrop" id="authModal">
+     <div class="modal">
+      <h3 id="authTitle">Sign In</h3>
+      <div id="authForms">
+       <div id="formSignIn">
+        <div class="form-row"><input id="siEmail" placeholder="Email" /></div>
+        <div class="form-row"><input id="siPassword" type="password" placeholder="Password" />
+        </div>
+        <div style="display:flex;gap:8px">
+         <button class="btn" id="btnSignInNow">Sign In</button>
+         <button class="btn ghost" id="showRegister">Create account</button>
+        </div>
+        <div style="height:8px"></div>
+        <div class="hint">เข้าสู่ระบบด้วยบัญชีที่สร้างผ่านหน้า Register</div>
+       </div>
+
+       <div id="formRegister" style="display:none">
+        <div class="form-row">
+         <input id="rName" placeholder="ชื่อพนักงาน" />
+        </div>
+        <div class="form-row">
+         <input id="rEmail" placeholder="Email (สำหรับ Login)" />
+        </div>
+        <div class="form-row">
+         <input id="rPassword" type="password" placeholder="Password" />
+         <select id="rBranch" style="min-width:120px"></select>
+        </div>
+
+        <div style="display:flex;gap:8px">
+         <button class="btn" id="btnRegisterNow">Create Account</button>
+         <button class="btn ghost" id="showSignIn">Back to Sign In</button>
+        </div>
+        <div style="height:8px"></div>
+        <div class="hint">ระบบจะสร้าง Staff Code อัตโนมัติ (ตัวอย่าง: S-XXXX)
+         และเชื่อมกับสาขาที่เลือก</div>
+       </div>
+      </div>
+     </div>
+    </div>
+   </main>
+  </div>
+ </div>
+
+ <script>
+  // กำหนดค่า Supabase
+   const SUPABASE_URL = 'https://pujxykbpxsncbrlquaxo.supabase.co';
+   const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB1anh5a2JweHNuY2JybHF1YXhvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjI3OTI0OTIsImV4cCI6MjA3ODM2ODQ5Mn0.JxavkquEZo0W7NME4CJ01GbLKR0_gYFdcKy2BWCrAso';
+
+   // สร้าง client ของ Supabase
+   const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+   let currentBranchName = '-';
+   let currentUserId = null;
+
+
+   /**
+    * ฟังก์ชันดึงชื่อสาขาจาก Branch ID ที่อยู่ใน User Metadata (หลัง Sign In)
+    * @param {string} branchId 
+    */
+   async function fetchBranchName(branchId) {
+    try {
+     const { data, error } = await supabaseClient
+      .from('branches')
+      .select('name')
+      .eq('id', branchId)
+      .single();
+
+     if (error) {
+      console.error("Error fetching branch name:", error.message);
+      return 'Unknown Branch';
+     }
+     return data ? data.name : 'Branch ID Not Found';
+
+    } catch (err) {
+     console.error("Error fetching branch name:", err);
+     return 'Fetch Error';
+    }
+   }
+
+
+   /**
+    * ฟังก์ชันอัพเดท UI เมื่อผู้ใช้เข้าสู่ระบบ/ออกจากระบบ
+    * @param {object} user - Supabase user object หรือ null
+    * @param {string | null} branchName - ชื่อสาขาของผู้ใช้
+    */
+   function updateUI(user, branchName = null) {
+    const staffNameElement = document.getElementById('staffName');
+    const staffBranchElement = document.getElementById('staffBranch');
+    const avatarElement = document.getElementById('avatar');
+    const currentBranchLabel = document.getElementById('currentBranchLabel');
+
+    if (user) {
+     // ผู้ใช้เข้าสู่ระบบแล้ว
+     const userName = user.user_metadata?.display_name || user.email.split('@')[0];
+     staffNameElement.textContent = userName;
+     staffBranchElement.textContent = branchName || 'Loading branch...';
+     avatarElement.textContent = userName[0].toUpperCase();
+     currentBranchLabel.textContent = branchName || '-';
+
+     document.getElementById('btnOpenAuth').style.display = 'none';
+     document.getElementById('btnSignOut').style.display = 'block';
+     closeAuthModal();
+
+    } else {
+     // ผู้ใช้ไม่ได้เข้าสู่ระบบ
+     staffNameElement.textContent = 'Guest';
+     staffBranchElement.textContent = 'Not signed';
+     avatarElement.textContent = 'G';
+     currentBranchLabel.textContent = '-';
+
+     document.getElementById('btnOpenAuth').style.display = 'block';
+     document.getElementById('btnSignOut').style.display = 'none';
+    }
+   }
+
+
+   /**
+    * ฟังก์ชันสำหรับแสดงรายการ Top Menu 5 อันดับแรก
+    * @param {Array<Object>} topItems - ข้อมูล Top Menu
+    */
+   function renderTopMenuTable(topItems) {
+    const tableBody = document.querySelector('#topMenuTable tbody');
+    tableBody.innerHTML = ''; // เคลียร์ข้อมูลเก่า
+
+    if (!topItems || topItems.length === 0) {
+     tableBody.innerHTML = '<tr><td colspan="2" class="muted">ไม่มีข้อมูลยอดขายในช่วงนี้</td></tr>';
+     return;
+    }
+
+    topItems.forEach(item => {
+     const row = tableBody.insertRow();
+     row.insertCell().textContent = item.item_name;
+     row.insertCell().textContent = item.count.toLocaleString('th-TH');
+     row.cells[1].classList.add('right');
+    });
+   }
+
+
+   /**
+    * ฟังก์ชันสำหรับดึงข้อมูล KPI, Top Menu, และ Inventory 
+    * โดยอิงตามสาขาปัจจุบันของผู้ใช้ที่เข้าสู่ระบบ
+    */
+   async function fetchDashboardData() {
+    // ตรวจสอบว่ามี User ID และ Branch Name หรือไม่
+    if (!currentUserId || !currentBranchName) {
+     console.warn("User is not fully signed in or branch info is missing.");
+     return;
+    }
+
+    // กำหนด Branch ID ที่จะใช้กรอง 
+    const staffBranchId = supabaseClient.auth.user()?.user_metadata?.branch_id;
+    if (!staffBranchId) {
+     console.error("Branch ID not found in user metadata.");
+     return;
+    }
+
+    // กำหนดวันที่เริ่มต้นและสิ้นสุด
+    const today = new Date().toISOString().split('T')[0];
+    const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+
+    // แสดงสถานะ Loading 
+    document.getElementById('kpiSalesToday').textContent = '...';
+    document.getElementById('kpiSalesMonth').textContent = '...';
+    document.getElementById('kpiStockTotal').textContent = '...';
+    document.getElementById('kpiStockZero').textContent = '...';
+    renderTopMenuTable([]); // เคลียร์ตาราง Top Menu
+
+    try {
+     // --- 1. ดึงยอดขายวันนี้ และยอดขายเดือนนี้จาก 'receipts' ---
+     const { data: receiptsData, error: errReceipts } = await supabaseClient
+      .from('receipts')
+      .select('id, total_amount, created_at')
+      .eq('branch_id', staffBranchId)
+      .gte('created_at', firstDayOfMonth);
+
+     if (errReceipts) throw errReceipts;
+
+     let totalSalesToday = 0;
+     let totalSalesMonth = 0;
+
+     receiptsData.forEach(receipt => {
+      totalSalesMonth += receipt.total_amount;
+      if (receipt.created_at.startsWith(today)) {
+       totalSalesToday += receipt.total_amount;
+      }
+     });
+
+     document.getElementById('kpiSalesToday').textContent = totalSalesToday.toLocaleString('th-TH', { maximumFractionDigits: 2 });
+     document.getElementById('kpiSalesMonth').textContent = totalSalesMonth.toLocaleString('th-TH', { maximumFractionDigits: 2 });
+
+
+     // --- 2. ดึงข้อมูล Stock (Inventory) จาก 'ingredients_stock_balance' ---
+     const { data: stockData, error: errInv } = await supabaseClient
+      .from('ingredients_stock_balance')
+      .select('balance_quantity')
+      .eq('branch_id', staffBranchId);
+
+     if (errInv) throw errInv;
+
+     const totalStock = stockData.reduce((sum, item) => sum + item.balance_quantity, 0);
+     const zeroStock = stockData.filter(item => item.balance_quantity === 0).length;
+
+     document.getElementById('kpiStockTotal').textContent = totalStock.toLocaleString('th-TH');
+     document.getElementById('kpiStockZero').textContent = zeroStock.toLocaleString('th-TH');
+
+
+     // --- 3. ดึง Top 5 Menu จาก 'receipt_items' ---
+     const receiptIds = receiptsData.map(r => r.id);
+
+     if (receiptIds.length > 0) {
+      const { data: itemsData, error: errItems } = await supabaseClient
+       .from('receipt_items')
+       .select('item_name')
+       .in('receipt_id', receiptIds);
+
+      if (errItems) throw errItems;
+
+      const menuCounts = itemsData.reduce((acc, item) => {
+       const name = item.item_name;
+       acc[name] = (acc[name] || 0) + 1;
+       return acc;
+      }, {});
+
+      const topMenu = Object.entries(menuCounts)
+       .map(([item_name, count]) => ({ item_name, count }))
+       .sort((a, b) => b.count - a.count)
+       .slice(0, 5);
+
+      renderTopMenuTable(topMenu);
+     } else {
+      renderTopMenuTable([]);
+     }
+
+     // --- 4. ดึงรายการล่าสุดจาก 'receipts' (TODO: ยังไม่ได้ทำ) ---
+
+
+    } catch (error) {
+     console.error("Error fetching dashboard data:", error);
+     // แสดงข้อความ Error ใน UI หากดึงข้อมูลไม่ได้
+     document.getElementById('kpiSalesToday').textContent = 'Error';
+     document.getElementById('kpiSalesMonth').textContent = 'Error';
+     document.getElementById('kpiStockTotal').textContent = 'Error';
+     document.getElementById('kpiStockZero').textContent = 'Error';
+     alert(`เกิดข้อผิดพลาดในการดึงข้อมูล: ${error.message}. โปรดตรวจสอบ RLS Policy ของตาราง receipts/receipt_items/inventory`);
+    }
+   }
+
+
+   /**
+    * ตรวจสอบสถานะผู้ใช้เมื่อหน้าเว็บโหลด
+    */
+   async function checkUser() {
+    const { data: { user } } = await supabaseClient.auth.getUser();
+
+    if (user) {
+     currentUserId = user.id;
+     const branchId = user.user_metadata?.branch_id;
+     let branchName = null;
+
+     if (branchId) {
+      branchName = await fetchBranchName(branchId);
+      currentBranchName = branchName;
+     }
+     updateUI(user, branchName);
+
+     // **เรียกฟังก์ชันโหลด Dashboard Data**
+     fetchDashboardData();
+
+    } else {
+     updateUI(null);
+    }
+   }
+
+   /**
+    * ฟังก์ชันเพื่อโหลดข้อมูลสาขาจากตาราง 'branches' ของ Supabase
+    */
+   async function loadBranches() {
+    try {
+     const { data, error } = await supabaseClient
+      .from('branches')
+      .select('id, name')
+      .order('name', { ascending: true });
+
+     if (error) {
+      console.error("Error loading branches:", error.message);
+      return;
+     }
+
+     const branchSelect = document.getElementById('rBranch');
+     if (branchSelect) {
+      branchSelect.innerHTML = '';
+
+      const defaultOption = document.createElement('option');
+      defaultOption.value = '';
+      defaultOption.textContent = '--- เลือกสาขา ---';
+      branchSelect.appendChild(defaultOption);
+
+      if (data && data.length > 0) {
+       data.forEach(branch => {
+        const option = document.createElement('option');
+        option.value = branch.id;
+        option.textContent = branch.name;
+        branchSelect.appendChild(option);
+       });
+      }
+     }
+    } catch (err) {
+     console.error("Critical Error in loadBranches:", err);
+    }
+   }
+
+   /**
+    * ฟังก์ชันสร้าง Staff Code (S-XXXX) จาก User ID
+    * @param {string} userId - UID ของผู้ใช้ที่เพิ่งลงทะเบียน
+    */
+   function generateStaffCode(userId) {
+    const uniquePart = userId.substring(0, 4).toUpperCase();
+    return `S-${uniquePart}`;
+   }
+
+
+   /**
+    * ฟังก์ชันสำหรับจัดการการลงทะเบียน (Create Account)
+    */
+   async function handleRegister() {
+    const name = document.getElementById('rName').value.trim();
+    const email = document.getElementById('rEmail').value.trim();
+    const password = document.getElementById('rPassword').value.trim();
+    const branchId = document.getElementById('rBranch').value;
+
+    if (!name || !email || !password || !branchId) {
+     alert("กรุณากรอกข้อมูลให้ครบถ้วนและเลือกสาขา");
+     return;
+    }
+
+    try {
+     // --- 1. ลงทะเบียนผู้ใช้ (Auth) และเก็บ user_metadata ---
+     const { data, error: authError } = await supabaseClient.auth.signUp({
+      email: email,
+      password: password,
+      options: {
+       data: {
+        display_name: name,
+        branch_id: branchId
+       }
+      }
+     });
+
+     if (authError) {
+      let errorMessage = authError.message;
+      if (authError.message.includes('Password should be at least')) {
+       errorMessage = "รหัสผ่านต้องมีความยาวอย่างน้อย 6 ตัวอักษร";
+      } else if (authError.message.includes('User already registered')) {
+       errorMessage = "อีเมลนี้ถูกใช้ลงทะเบียนแล้ว";
+      }
+      alert(`ลงทะเบียนไม่สำเร็จ: ${errorMessage}`);
+      return;
+     }
+
+     const newUser = data.user;
+     if (!newUser) {
+      alert("ลงทะเบียนสำเร็จ แต่ไม่พบข้อมูลผู้ใช้ (โปรดลองเข้าสู่ระบบ)");
+      return;
+     }
+
+     // --- 2. GENERATE STAFF ID (S-XXXX) ---
+     const staffCode = generateStaffCode(newUser.id);
+
+     // --- 3. INSERT ข้อมูลพนักงานลงในตาราง 'staff' ---
+     const { error: staffError } = await supabaseClient
+      .from('staff')
+      .insert({
+       staff_id: staffCode,
+       user_id: newUser.id,
+       name: name,
+       email: email,
+       branch_id: branchId
+       // **ถ้าตาราง staff มีคอลัมน์อื่น ต้องเพิ่มข้อมูลที่นี่**
+      });
+
+     if (staffError) {
+      console.error("Staff Insert Error:", staffError.message);
+      alert(`ลงทะเบียนสำเร็จ แต่เกิดข้อผิดพลาดในการบันทึกข้อมูลพนักงาน: ${staffError.message}. โปรดแจ้งผู้ดูแลระบบ.`);
+     }
+
+     // --- 4. แจ้งผลสำเร็จและเคลียร์ฟอร์ม ---
+     alert("ลงทะเบียนสำเร็จ! ตอนนี้คุณสามารถเข้าสู่ระบบได้แล้ว");
+     document.getElementById('rName').value = '';
+     document.getElementById('rEmail').value = '';
+     document.getElementById('rPassword').value = '';
+     document.getElementById('rBranch').value = '';
+     closeAuthModal();
+     showSignInForm();
+
+    } catch (err) {
+     console.error("Unexpected Register Error:", err);
+     alert("เกิดข้อผิดพลาดในการลงทะเบียนที่ไม่คาดคิด");
+    }
+   }
+
+
+   /**
+    * ฟังก์ชันสำหรับจัดการการเข้าสู่ระบบ (Sign In)
+    */
+   async function handleSignIn() {
+    const email = document.getElementById('siEmail').value.trim();
+    const password = document.getElementById('siPassword').value.trim();
+
+    if (!email || !password) {
+     alert("กรุณากรอกอีเมลและรหัสผ่าน");
+     return;
+    }
+
+    try {
+     const { error } = await supabaseClient.auth.signInWithPassword({
+      email: email,
+      password: password,
+     });
+
+     if (error) {
+      alert(`เข้าสู่ระบบไม่สำเร็จ: ${error.message}`);
+      return;
+     }
+
+     alert("เข้าสู่ระบบสำเร็จ");
+     document.getElementById('siEmail').value = '';
+     document.getElementById('siPassword').value = '';
+
+     // อัพเดท UI และตรวจสอบสถานะผู้ใช้
+     await checkUser();
+
+    } catch (err) {
+     console.error("Unexpected Sign In Error:", err);
+     alert("เกิดข้อผิดพลาดในการเข้าสู่ระบบที่ไม่คาดคิด");
+    }
+   }
+
+   /**
+    * ฟังก์ชันสำหรับจัดการการออกจากระบบ (Sign Out)
+    */
+   async function handleSignOut() {
+    const { error } = await supabaseClient.auth.signOut();
+    if (error) {
+     console.error("Sign Out Error:", error.message);
+     alert("ออกจากระบบไม่สำเร็จ");
+     return;
+    }
+
+    alert("ออกจากระบบสำเร็จ");
+    updateUI(null);
+   }
+
+   // --- ฟังก์ชันควบคุม Modal และ Form ---
+
+   function openAuthModal() {
+    const modal = document.getElementById('authModal');
+    if (modal) {
+     modal.style.display = 'flex';
+    }
+   }
+
+   function closeAuthModal() {
+    const modal = document.getElementById('authModal');
+    if (modal) {
+     modal.style.display = 'none';
+    }
+   }
+
+   function showRegisterForm() {
+    document.getElementById('formSignIn').style.display = 'none';
+    document.getElementById('formRegister').style.display = 'block';
+    document.getElementById('authTitle').innerText = 'Create Account';
+   }
+
+   function showSignInForm() {
+    document.getElementById('formSignIn').style.display = 'block';
+    document.getElementById('formRegister').style.display = 'none';
+    document.getElementById('authTitle').innerText = 'Sign In';
+   }
+
+   // --- Event Listeners: จัดการเมื่อหน้าโหลดและมีการคลิก ---
+
+   document.addEventListener('DOMContentLoaded', function () {
+    // 1. โหลดข้อมูลสำคัญเมื่อหน้าเว็บพร้อม
+    loadBranches();
+    checkUser(); // ตรวจสอบสถานะการเข้าสู่ระบบ
+
+    // 2. Event Listeners
+    const btnOpenAuth = document.getElementById('btnOpenAuth');
+    const authModal = document.getElementById('authModal');
+    const showRegister = document.getElementById('showRegister');
+    const showSignIn = document.getElementById('showSignIn');
+    const btnRegisterNow = document.getElementById('btnRegisterNow');
+    const btnSignInNow = document.getElementById('btnSignInNow');
+    const btnSignOut = document.getElementById('btnSignOut');
+
+
+    if (btnOpenAuth) {
+     btnOpenAuth.addEventListener('click', openAuthModal);
+    }
+
+    if (authModal) {
+     authModal.addEventListener('click', function (e) {
+      if (e.target.id === 'authModal') {
+       closeAuthModal();
+      }
+     });
+    }
+
+    if (showRegister) {
+     showRegister.addEventListener('click', showRegisterForm);
+    }
+
+    if (showSignIn) {
+     showSignIn.addEventListener('click', showSignInForm);
+    }
+
+    if (btnRegisterNow) {
+     btnRegisterNow.addEventListener('click', handleRegister);
+    }
+
+    if (btnSignInNow) {
+     btnSignInNow.addEventListener('click', handleSignIn);
+    }
+
+    if (btnSignOut) {
+     btnSignOut.addEventListener('click', handleSignOut);
+    }
+
+    // ซ่อนปุ่ม Sign Out เริ่มต้น
+    document.getElementById('btnSignOut').style.display = 'none';
+   });
+ </script>
+</body>
+
+</html>
