@@ -564,6 +564,7 @@
     * @param {object} user - Supabase user object ที่ดึงมาจาก checkUser
     */
    async function fetchDashboardData(user) {
+    // 🚩 เปลี่ยนเงื่อนไขการตรวจสอบ: ใช้ user object ที่ส่งมาแทน global variables
     if (!user) {
         console.error("User object is missing for dashboard data fetch.");
         return;
@@ -674,7 +675,7 @@
      document.getElementById('kpiStockTotal').textContent = 'Error';
      document.getElementById('kpiStockZero').textContent = 'Error';
      renderRecentSalesTable([]); // เคลียร์และแสดงว่าไม่มีข้อมูล
-     alert(`เกิดข้อผิดพลาดในการดึงข้อมูล: ${error.message}. โปรดตรวจสอบ RLS Policy ของตาราง receipts/receipt_items/inventory`);
+     // 🚩 ลบ alert ที่ก่อให้เกิด popup ซ้ำๆ
     }
    }
 
@@ -692,19 +693,23 @@
 
      if (branchId) {
       branchName = await fetchBranchName(branchId);
-      currentBranchName = branchName;
+      currentBranchName = branchName; // <--- แก้ไข: กำหนดค่า Global ให้ชัดเจน
      }
+     
      updateUI(user, branchName);
 
      // **เรียกฟังก์ชันโหลด Dashboard Data โดยส่ง user object ไปด้วย**
-     fetchDashboardData(user);
+     if (currentUserId && currentBranchName !== '-') { // เช็คซ้ำก่อนเรียก
+         fetchDashboardData(user);
+     }
+
 
     } else {
      updateUI(null);
+     currentUserId = null;
+     currentBranchName = '-'; // <--- แก้ไข: กำหนดค่า Global เป็นค่าเริ่มต้น
     }
    }
-
-   // ... (ส่วนที่เหลือของโค้ดเหมือนเดิม)
 
    /**
     * ฟังก์ชันเพื่อโหลดข้อมูลสาขาจากตาราง 'branches' ของ Supabase
@@ -883,6 +888,15 @@
 
     alert("ออกจากระบบสำเร็จ");
     updateUI(null);
+    currentUserId = null;
+    currentBranchName = '-';
+    // Clear KPIs เมื่อ Sign Out
+    document.getElementById('kpiSalesToday').textContent = '-';
+    document.getElementById('kpiSalesMonth').textContent = '-';
+    document.getElementById('kpiStockTotal').textContent = '-';
+    document.getElementById('kpiStockZero').textContent = '-';
+    renderTopMenuTable([]);
+    renderRecentSalesTable([]);
    }
 
    // --- ฟังก์ชันควบคุม Modal และ Form ---
