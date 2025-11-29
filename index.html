@@ -225,17 +225,6 @@
    text-align: center
   }
 
-  /* responsive */
-  @media (max-width:900px) {
-   .main {
-    grid-template-columns: 1fr;
-   }
-
-   .content-grid {
-    grid-template-columns: 1fr;
-   }
-  }
-
   /* simple modal */
   .modal-backdrop {
    position: fixed;
@@ -275,6 +264,25 @@
   .hint {
    font-size: 0.82rem;
    color: var(--muted)
+  }
+  
+  /* ***** เพิ่ม CSS สำหรับกราฟที่นี่ ***** */
+  .chart-container {
+   max-height: 250px; 
+   position: relative; 
+   margin-top: 10px;
+  }
+  /* ************************************* */
+
+  /* responsive */
+  @media (max-width:900px) {
+   .main {
+    grid-template-columns: 1fr;
+   }
+
+   .content-grid {
+    grid-template-columns: 1fr;
+   }
   }
  </style>
 </head>
@@ -356,9 +364,10 @@
 
       <div class="card" style="grid-column:span 2">
        <h3 style="margin:0 0 8px 0">ยอดขายย้อนหลัง (7 วัน)</h3>
-       <canvas id="salesChart" height="100"></canvas>
+       <div class="chart-container">
+        <canvas id="salesChart"></canvas> 
+       </div>
       </div>
-
       <div class="card">
        <h4 style="margin-top:0">Top 5 เมนู</h4>
        <table class="table" id="topMenuTable">
@@ -615,7 +624,12 @@
 
     // กำหนดวันที่เริ่มต้นและสิ้นสุด
     const today = new Date().toISOString().split('T')[0];
+    // ดึงข้อมูล 7 วันย้อนหลัง (รวมวันนี้) เพื่อใช้ในกราฟและ KPI
+    const sevenDaysAgo = new Date();
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6); 
+    sevenDaysAgo.setHours(0, 0, 0, 0); 
     const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
+
 
     // แสดงสถานะ Loading (ใช้ safeUpdateKpi)
     safeUpdateKpi('kpiSalesToday', '...');
@@ -626,13 +640,13 @@
     renderRecentSalesTable([]); // เคลียร์ตาราง Recent Sales
 
     try {
-     // --- 1. ดึงยอดขายวันนี้ และยอดขายเดือนนี้จาก 'receipts' ---
+     // --- 1. ดึงยอดขายและรายการขาย (ดึงย้อนหลังไปถึงต้นเดือนเพื่อคำนวณยอดรวมเดือน และเผื่อสำหรับกราฟ) ---
      const { data: receiptsData, error: errReceipts } = await supabaseClient
       .from('receipts')
       .select('id, total_amount, created_at, payment_method')
       .eq('branch_id', staffBranchId)
-      .gte('created_at', firstDayOfMonth)
-      .order('created_at', { ascending: false }); // เรียงเพื่อใช้ใน Recent Sales
+      .gte('created_at', firstDayOfMonth) // กรองตั้งแต่ต้นเดือน
+      .order('created_at', { ascending: false }); 
 
      if (errReceipts) throw errReceipts;
 
@@ -698,24 +712,19 @@
      renderRecentSalesTable(receiptsData.slice(0, 5));
 
 
-    // ... โค้ดส่วนบนของ fetchDashboardData() ...
-     // 4. ดึงรายการล่าสุดจาก 'receipts' (Recent Sales)
-     renderRecentSalesTable(receiptsData.slice(0, 5));
-
-
-     // 5. วาดกราฟยอดขาย (7 วันย้อนหลัง) <<<<<<<<<<< แก้ไขโค้ดส่วนนี้ >>>>>>>>>>>
+     // 5. วาดกราฟยอดขาย (7 วันย้อนหลัง) (แก้ไขให้ดึงข้อมูลจริง)
      const salesChartElement = document.getElementById('salesChart');
 
      if (salesChartElement) {
-        // --- ส่วนที่แก้ไข: สร้างข้อมูลจริง 7 วันย้อนหลัง ---
+        
         const salesByDay = {};
-        const today = new Date();
-        today.setHours(0, 0, 0, 0); // กำหนดให้เป็น 00:00:00
+        const todayForGraph = new Date();
+        todayForGraph.setHours(0, 0, 0, 0); 
 
         // เตรียมโครงสร้างข้อมูลสำหรับ 7 วัน
         for (let i = 0; i < 7; i++) {
-            const date = new Date(today);
-            date.setDate(today.getDate() - i);
+            const date = new Date(todayForGraph);
+            date.setDate(todayForGraph.getDate() - (6 - i)); // นับจาก 6 วันย้อนหลังถึงวันนี้ (0)
             const dateKey = date.toISOString().split('T')[0];
             salesByDay[dateKey] = 0;
         }
@@ -730,15 +739,13 @@
 
         // จัดเรียงข้อมูลให้เป็น 7 วันย้อนหลังจากเก่าไปใหม่
         const last7DaysData = Object.entries(salesByDay)
-            .sort((a, b) => new Date(a[0]) - new Date(b[0])) // เรียงจากวันที่เก่าไปใหม่
+            .sort((a, b) => new Date(a[0]) - new Date(b[0])) 
             .map(([date, total]) => ({ date, total }));
         
-        // --- สิ้นสุดส่วนแก้ไขข้อมูล ---
-
         const labels = last7DaysData.map(d => new Date(d.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }));
         const dataValues = last7DaysData.map(d => d.total);
 
-        // วาดกราฟต่อ ...
+        // ตรวจสอบว่ามี Chart instance เก่าอยู่ไหม
         if (window.salesChartInstance) {
             window.salesChartInstance.destroy();
         }
@@ -751,7 +758,7 @@
                 datasets: [{
                     label: 'ยอดขาย (฿)',
                     data: dataValues,
-                    borderColor: '#10b981',
+                    borderColor: '#10b981', // success color
                     backgroundColor: 'rgba(16, 185, 129, 0.2)',
                     tension: 0.3,
                     fill: true
@@ -776,10 +783,10 @@
                 }
             }
         });
-    } else {
-        console.warn("Element 'salesChart' not found. Skipping chart rendering.");
-    }
-// ... โค้ดส่วนล่างของ fetchDashboardData() ...
+     } else {
+         console.warn("Element 'salesChart' not found. Skipping chart rendering.");
+     }
+
 
     } catch (error) {
      console.error("Error fetching dashboard data:", error);
