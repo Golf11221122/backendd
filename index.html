@@ -569,14 +569,20 @@
     }
 
     sales.forEach(receipt => {
-     // จัดรูปแบบเวลาให้แสดงแค่ HH:mm (เวลา)
-     // ***** TIME ZONE FIX: บังคับให้แสดงเวลาใน Time Zone ไทย (Asia/Bangkok) *****
-     const time = new Date(receipt.created_at).toLocaleTimeString('th-TH', {
+     
+     // ***** FIX: บังคับให้ string เป็น UTC ก่อนการสร้าง Date Object *****
+     // 1. ตรวจสอบและเพิ่ม 'Z' (UTC Indicator) หากไม่มี เพื่อบังคับให้ JS รู้ว่านี่คือเวลา UTC 
+     const utcString = receipt.created_at.endsWith('Z') || receipt.created_at.includes('+') 
+         ? receipt.created_at 
+         : receipt.created_at + 'Z'; 
+     // *******************************************************************
+        
+     // 2. แปลงจาก UTC ที่ถูกต้อง เป็นเวลาไทย (Asia/Bangkok)
+     const time = new Date(utcString).toLocaleTimeString('th-TH', {
       hour: '2-digit',
       minute: '2-digit',
-      timeZone: 'Asia/Bangkok' // <<--- เพิ่มส่วนนี้
+      timeZone: 'Asia/Bangkok' 
      });
-     // *************************************************************************
 
      const row = tableBody.insertRow();
      row.insertCell().textContent = time;
