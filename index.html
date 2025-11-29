@@ -266,7 +266,7 @@
    color: var(--muted)
   }
   
-  /* ***** เพิ่ม CSS สำหรับกราฟที่นี่ ***** */
+  /* ***** CSS FIX: กำหนดความสูงของกราฟ ***** */
   .chart-container {
    max-height: 250px; 
    position: relative; 
@@ -570,10 +570,13 @@
 
     sales.forEach(receipt => {
      // จัดรูปแบบเวลาให้แสดงแค่ HH:mm (เวลา)
+     // ***** TIME ZONE FIX: บังคับให้แสดงเวลาใน Time Zone ไทย (Asia/Bangkok) *****
      const time = new Date(receipt.created_at).toLocaleTimeString('th-TH', {
       hour: '2-digit',
-      minute: '2-digit'
+      minute: '2-digit',
+      timeZone: 'Asia/Bangkok' // <<--- เพิ่มส่วนนี้
      });
+     // *************************************************************************
 
      const row = tableBody.insertRow();
      row.insertCell().textContent = time;
@@ -712,7 +715,7 @@
      renderRecentSalesTable(receiptsData.slice(0, 5));
 
 
-     // 5. วาดกราฟยอดขาย (7 วันย้อนหลัง) (แก้ไขให้ดึงข้อมูลจริง)
+     // ***** 5. วาดกราฟยอดขาย (7 วันย้อนหลัง) - FIX ข้อมูลจริงและกราฟยืด *****
      const salesChartElement = document.getElementById('salesChart');
 
      if (salesChartElement) {
@@ -786,6 +789,7 @@
      } else {
          console.warn("Element 'salesChart' not found. Skipping chart rendering.");
      }
+     // *************************************************************************
 
 
     } catch (error) {
