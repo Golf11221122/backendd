@@ -524,6 +524,38 @@
      row.cells[1].classList.add('right');
     });
    }
+   
+   // 🚩 START: 1. ฟังก์ชันใหม่สำหรับแสดงรายการขายล่าสุด
+   /**
+    * ฟังก์ชันสำหรับแสดงรายการขายล่าสุด
+    * @param {Array<Object>} sales - ข้อมูลรายการขาย
+    */
+   function renderRecentSalesTable(sales) {
+    const tableBody = document.querySelector('#recentSalesTable tbody');
+    tableBody.innerHTML = ''; // เคลียร์ข้อมูลเก่า
+
+    if (!sales || sales.length === 0) {
+     tableBody.innerHTML = '<tr><td colspan="3" class="muted">ไม่มีรายการขายล่าสุด</td></tr>';
+     return;
+    }
+
+    sales.forEach(receipt => {
+     // จัดรูปแบบเวลาให้แสดงแค่ HH:mm (เวลา)
+     const time = new Date(receipt.created_at).toLocaleTimeString('th-TH', {
+      hour: '2-digit',
+      minute: '2-digit'
+     });
+
+     const row = tableBody.insertRow();
+     row.insertCell().textContent = time;
+     row.insertCell().textContent = receipt.total_amount.toLocaleString('th-TH', {
+      maximumFractionDigits: 2
+     });
+     row.insertCell().textContent = receipt.payment_method;
+     row.cells[1].classList.add('right'); // ให้คอลัมน์ "ยอด" ชิดขวา
+    });
+   }
+   // 🚩 END: 1. ฟังก์ชันใหม่สำหรับแสดงรายการขายล่าสุด
 
 
    /**
@@ -554,9 +586,10 @@
     document.getElementById('kpiStockTotal').textContent = '...';
     document.getElementById('kpiStockZero').textContent = '...';
     renderTopMenuTable([]); // เคลียร์ตาราง Top Menu
+    renderRecentSalesTable([]); // 🚩 เคลียร์ตาราง Recent Sales
 
     try {
-     // --- 1. ดึงยอดขายวันนี้ และยอดขายเดือนนี้จาก 'receipts' ---
+     // --- 1. ดึงยอดขายวันนี้ และยอดขายเดือนนี้จาก 'receipts' (ใช้สำหรับ KPI & Top Menu ID) ---
      const { data: receiptsData, error: errReceipts } = await supabaseClient
       .from('receipts')
       .select('id, total_amount, created_at')
@@ -621,7 +654,18 @@
       renderTopMenuTable([]);
      }
 
-     // --- 4. ดึงรายการล่าสุดจาก 'receipts' (TODO: ยังไม่ได้ทำ) ---
+     // 🚩 START: 2. ดึงรายการล่าสุดจาก 'receipts' (Recent Sales)
+     const { data: recentSales, error: errRecent } = await supabaseClient
+      .from('receipts')
+      .select('created_at, total_amount, payment_method') // 👈 เลือกเฉพาะคอลัมน์ที่ต้องการ
+      .eq('branch_id', staffBranchId)
+      .order('created_at', { ascending: false }) // 👈 เรียงจากใหม่ไปเก่า
+      .limit(5); // 👈 จำกัด 5 รายการล่าสุด
+
+     if (errRecent) throw errRecent;
+
+     renderRecentSalesTable(recentSales);
+     // 🚩 END: 2. ดึงรายการล่าสุดจาก 'receipts' (Recent Sales)
 
 
     } catch (error) {
@@ -631,6 +675,7 @@
      document.getElementById('kpiSalesMonth').textContent = 'Error';
      document.getElementById('kpiStockTotal').textContent = 'Error';
      document.getElementById('kpiStockZero').textContent = 'Error';
+     renderRecentSalesTable([]); // เคลียร์และแสดงว่าไม่มีข้อมูล
      alert(`เกิดข้อผิดพลาดในการดึงข้อมูล: ${error.message}. โปรดตรวจสอบ RLS Policy ของตาราง receipts/receipt_items/inventory`);
     }
    }
