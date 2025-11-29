@@ -442,6 +442,18 @@
    let currentBranchName = '-';
    let currentUserId = null;
 
+   /**
+    * Helper function to safely update text content of a KPI element
+    * @param {string} id - The element ID
+    * @param {string} text - The text content to set
+    */
+   function safeUpdateKpi(id, text) {
+    const el = document.getElementById(id);
+    if (el) {
+     el.textContent = text;
+    }
+   }
+
 
    /**
     * ฟังก์ชันดึงชื่อสาขาจาก Branch ID ที่อยู่ใน User Metadata (หลัง Sign In)
@@ -482,24 +494,29 @@
     if (user) {
      // ผู้ใช้เข้าสู่ระบบแล้ว
      const userName = user.user_metadata?.display_name || user.email.split('@')[0];
-     staffNameElement.textContent = userName;
-     staffBranchElement.textContent = branchName || 'Loading branch...';
-     avatarElement.textContent = userName[0].toUpperCase();
-     currentBranchLabel.textContent = branchName || '-';
+     if (staffNameElement) staffNameElement.textContent = userName;
+     if (staffBranchElement) staffBranchElement.textContent = branchName || 'Loading branch...';
+     if (avatarElement) avatarElement.textContent = userName[0].toUpperCase();
+     if (currentBranchLabel) currentBranchLabel.textContent = branchName || '-';
 
-     document.getElementById('btnOpenAuth').style.display = 'none';
-     document.getElementById('btnSignOut').style.display = 'block';
+     const btnOpenAuth = document.getElementById('btnOpenAuth');
+     const btnSignOut = document.getElementById('btnSignOut');
+     if (btnOpenAuth) btnOpenAuth.style.display = 'none';
+     if (btnSignOut) btnSignOut.style.display = 'block';
+     
      closeAuthModal();
 
     } else {
      // ผู้ใช้ไม่ได้เข้าสู่ระบบ
-     staffNameElement.textContent = 'Guest';
-     staffBranchElement.textContent = 'Not signed';
-     avatarElement.textContent = 'G';
-     currentBranchLabel.textContent = '-';
+     if (staffNameElement) staffNameElement.textContent = 'Guest';
+     if (staffBranchElement) staffBranchElement.textContent = 'Not signed';
+     if (avatarElement) avatarElement.textContent = 'G';
+     if (currentBranchLabel) currentBranchLabel.textContent = '-';
 
-     document.getElementById('btnOpenAuth').style.display = 'block';
-     document.getElementById('btnSignOut').style.display = 'none';
+     const btnOpenAuth = document.getElementById('btnOpenAuth');
+     const btnSignOut = document.getElementById('btnSignOut');
+     if (btnOpenAuth) btnOpenAuth.style.display = 'block';
+     if (btnSignOut) btnSignOut.style.display = 'none';
     }
    }
 
@@ -510,6 +527,8 @@
     */
    function renderTopMenuTable(topItems) {
     const tableBody = document.querySelector('#topMenuTable tbody');
+    if (!tableBody) return; // เพิ่มการตรวจสอบ Element
+
     tableBody.innerHTML = ''; // เคลียร์ข้อมูลเก่า
 
     if (!topItems || topItems.length === 0) {
@@ -525,13 +544,14 @@
     });
    }
 
-   // 🚩 START: 1. ฟังก์ชันใหม่สำหรับแสดงรายการขายล่าสุด
    /**
     * ฟังก์ชันสำหรับแสดงรายการขายล่าสุด
     * @param {Array<Object>} sales - ข้อมูลรายการขาย
     */
    function renderRecentSalesTable(sales) {
     const tableBody = document.querySelector('#recentSalesTable tbody');
+    if (!tableBody) return; // เพิ่มการตรวจสอบ Element
+
     tableBody.innerHTML = ''; // เคลียร์ข้อมูลเก่า
 
     if (!sales || sales.length === 0) {
@@ -555,7 +575,6 @@
      row.cells[1].classList.add('right'); // ให้คอลัมน์ "ยอด" ชิดขวา
     });
    }
-   // 🚩 END: 1. ฟังก์ชันใหม่สำหรับแสดงรายการขายล่าสุด
 
 
    /**
@@ -571,8 +590,10 @@
     if (!user) {
      console.warn("User session is missing or invalid. Cannot fetch data.");
      // ตั้งค่า KPI เป็น '-' เพื่อให้ผู้ใช้รู้ว่าไม่ได้เข้าสู่ระบบ
-     document.getElementById('kpiSalesToday').textContent = '-';
-     document.getElementById('kpiStockTotal').textContent = '-';
+     safeUpdateKpi('kpiSalesToday', '-');
+     safeUpdateKpi('kpiSalesMonth', '-');
+     safeUpdateKpi('kpiStockTotal', '-');
+     safeUpdateKpi('kpiStockZero', '-');
      renderTopMenuTable([]);
      renderRecentSalesTable([]);
      return; // หยุดการทำงานทันทีถ้าไม่มี user
@@ -591,31 +612,21 @@
     // --- โค้ดที่เพิ่มสำหรับการดีบัก ---
     console.log("Branch ID ที่ใช้กรอง:", staffBranchId);
     // ---------------------------------
-    
-    // ... โค้ดที่เหลือของฟังก์ชัน fetchDashboardData() ยังคงเหมือนเดิม ...
-    // (ส่วนที่เหลือทั้งหมดจะอยู่ภายใต้การตรวจสอบด้านบนแล้ว)
-    // ---------------------------------
-    
-    if (!staffBranchId) {
-     console.error("Branch ID not found in user metadata. Cannot fetch data.");
-     return;
-    }
 
     // กำหนดวันที่เริ่มต้นและสิ้นสุด
     const today = new Date().toISOString().split('T')[0];
     const firstDayOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString();
 
-    // แสดงสถานะ Loading 
-    document.getElementById('kpiSalesToday').textContent = '...';
-    document.getElementById('kpiSalesMonth').textContent = '...';
-    document.getElementById('kpiStockTotal').textContent = '...';
-    document.getElementById('kpiStockZero').textContent = '...';
+    // แสดงสถานะ Loading (ใช้ safeUpdateKpi)
+    safeUpdateKpi('kpiSalesToday', '...');
+    safeUpdateKpi('kpiSalesMonth', '...');
+    safeUpdateKpi('kpiStockTotal', '...');
+    safeUpdateKpi('kpiStockZero', '...');
     renderTopMenuTable([]); // เคลียร์ตาราง Top Menu
-    renderRecentSalesTable([]); // 🚩 เคลียร์ตาราง Recent Sales
+    renderRecentSalesTable([]); // เคลียร์ตาราง Recent Sales
 
     try {
-     // --- 1. ดึงยอดขายวันนี้ และยอดขายเดือนนี้จาก 'receipts' (ใช้สำหรับ KPI & Top Menu ID) ---
-     // 🚩 เพิ่ม payment_method เพื่อให้ renderRecentSalesTable ทำงาน
+     // --- 1. ดึงยอดขายวันนี้ และยอดขายเดือนนี้จาก 'receipts' ---
      const { data: receiptsData, error: errReceipts } = await supabaseClient
       .from('receipts')
       .select('id, total_amount, created_at, payment_method')
@@ -635,8 +646,9 @@
       }
      });
 
-     document.getElementById('kpiSalesToday').textContent = totalSalesToday.toLocaleString('th-TH', { maximumFractionDigits: 2 });
-     document.getElementById('kpiSalesMonth').textContent = totalSalesMonth.toLocaleString('th-TH', { maximumFractionDigits: 2 });
+     // อัพเดท KPI ยอดขาย (ใช้ safeUpdateKpi)
+     safeUpdateKpi('kpiSalesToday', totalSalesToday.toLocaleString('th-TH', { maximumFractionDigits: 2 }));
+     safeUpdateKpi('kpiSalesMonth', totalSalesMonth.toLocaleString('th-TH', { maximumFractionDigits: 2 }));
 
 
      // --- 2. ดึงข้อมูล Stock (Inventory) จาก 'ingredients_stock_balance' ---
@@ -650,8 +662,9 @@
      const totalStock = stockData.reduce((sum, item) => sum + item.balance_quantity, 0);
      const zeroStock = stockData.filter(item => item.balance_quantity === 0).length;
 
-     document.getElementById('kpiStockTotal').textContent = totalStock.toLocaleString('th-TH');
-     document.getElementById('kpiStockZero').textContent = zeroStock.toLocaleString('th-TH');
+     // อัพเดท KPI สต็อก (ใช้ safeUpdateKpi)
+     safeUpdateKpi('kpiStockTotal', totalStock.toLocaleString('th-TH'));
+     safeUpdateKpi('kpiStockZero', zeroStock.toLocaleString('th-TH'));
 
 
      // --- 3. ดึง Top 5 Menu จาก 'receipt_items' ---
@@ -681,18 +694,15 @@
       renderTopMenuTable([]);
      }
 
-     // 🚩 START: 2. ดึงรายการล่าสุดจาก 'receipts' (Recent Sales)
-     // ใช้ข้อมูล receiptsData ที่ดึงมาแล้ว (ซึ่งมีการเรียงและมีข้อมูลครบ) และจำกัดแค่ 5 รายการแรก
+     // 4. ดึงรายการล่าสุดจาก 'receipts' (Recent Sales)
      renderRecentSalesTable(receiptsData.slice(0, 5));
-     // 🚩 END: 2. ดึงรายการล่าสุดจาก 'receipts' (Recent Sales)
 
 
-     // 🚩 START: 3. วาดกราฟยอดขาย (7 วันย้อนหลัง) - เพิ่มการตรวจสอบ element เพื่อแก้ TypeError
+     // 5. วาดกราฟยอดขาย (7 วันย้อนหลัง)
      const salesChartElement = document.getElementById('salesChart');
 
-     if (salesChartElement) { // แก้ไข: ตรวจสอบว่า Element มีอยู่จริง
+     if (salesChartElement) { // ตรวจสอบว่า Element มีอยู่จริง
          // ** สร้างตัวอย่างข้อมูลยอดขายย้อนหลัง (สมมติ) **
-         // ข้อมูลจริงควรถูกดึงตามช่วงวันที่ แต่ตอนนี้ใช้ข้อมูลสมมติ 7 วัน
          const last7DaysData = [
              { date: '2025-11-23', total: 12000 },
              { date: '2025-11-24', total: 15500 },
@@ -706,7 +716,7 @@
          const labels = last7DaysData.map(d => new Date(d.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }));
          const dataValues = last7DaysData.map(d => d.total);
 
-         // ตรวจสอบว่ามี Chart instance เก่าอยู่ไหม (เพื่อป้องกันการวาดซ้ำเมื่อ Refresh)
+         // ตรวจสอบว่ามี Chart instance เก่าอยู่ไหม
          if (window.salesChartInstance) {
              window.salesChartInstance.destroy();
          }
@@ -747,18 +757,16 @@
      } else {
          console.warn("Element 'salesChart' not found. Skipping chart rendering.");
      }
-     // 🚩 END: 3. วาดกราฟยอดขาย (7 วันย้อนหลัง)
 
 
     } catch (error) {
      console.error("Error fetching dashboard data:", error);
-     // แสดงข้อความ Error ใน UI หากดึงข้อมูลไม่ได้
-     document.getElementById('kpiSalesToday').textContent = 'Error';
-     document.getElementById('kpiSalesMonth').textContent = 'Error';
-     document.getElementById('kpiStockTotal').textContent = 'Error';
-     document.getElementById('kpiStockZero').textContent = 'Error';
+     // แสดงข้อความ Error ใน UI หากดึงข้อมูลไม่ได้ (ใช้ safeUpdateKpi)
+     safeUpdateKpi('kpiSalesToday', 'Error');
+     safeUpdateKpi('kpiSalesMonth', 'Error');
+     safeUpdateKpi('kpiStockTotal', 'Error');
+     safeUpdateKpi('kpiStockZero', 'Error');
      renderRecentSalesTable([]); // เคลียร์และแสดงว่าไม่มีข้อมูล
-     // ลบ alert ที่ก่อให้เกิด popup ซ้ำๆ
     }
    }
 
@@ -780,13 +788,11 @@
      }
      updateUI(user, branchName);
 
-     // **เรียกฟังก์ชันโหลด Dashboard Data**
-     fetchDashboardData();
-
+     // ไม่เรียก fetchDashboardData() ที่นี่แล้ว แต่จะถูกเรียกใน DOMContentLoaded
     } else {
      updateUI(null);
-     currentUserId = null; // 🚩 แก้ไข: ล้างค่า Global เมื่อ Sign Out
-     currentBranchName = '-'; // 🚩 แก้ไข: ล้างค่า Global เมื่อ Sign Out
+     currentUserId = null; 
+     currentBranchName = '-'; 
     }
    }
 
@@ -842,10 +848,10 @@
     * ฟังก์ชันสำหรับจัดการการลงทะเบียน (Create Account)
     */
    async function handleRegister() {
-    const name = document.getElementById('rName').value.trim();
-    const email = document.getElementById('rEmail').value.trim();
-    const password = document.getElementById('rPassword').value.trim();
-    const branchId = document.getElementById('rBranch').value;
+    const name = document.getElementById('rName')?.value.trim();
+    const email = document.getElementById('rEmail')?.value.trim();
+    const password = document.getElementById('rPassword')?.value.trim();
+    const branchId = document.getElementById('rBranch')?.value;
 
     if (!name || !email || !password || !branchId) {
      alert("กรุณากรอกข้อมูลให้ครบถ้วนและเลือกสาขา");
@@ -904,10 +910,16 @@
 
      // --- 4. แจ้งผลสำเร็จและเคลียร์ฟอร์ม ---
      alert("ลงทะเบียนสำเร็จ! ตอนนี้คุณสามารถเข้าสู่ระบบได้แล้ว");
-     document.getElementById('rName').value = '';
-     document.getElementById('rEmail').value = '';
-     document.getElementById('rPassword').value = '';
-     document.getElementById('rBranch').value = '';
+     const rName = document.getElementById('rName');
+     const rEmail = document.getElementById('rEmail');
+     const rPassword = document.getElementById('rPassword');
+     const rBranch = document.getElementById('rBranch');
+
+     if (rName) rName.value = '';
+     if (rEmail) rEmail.value = '';
+     if (rPassword) rPassword.value = '';
+     if (rBranch) rBranch.value = '';
+     
      closeAuthModal();
      showSignInForm();
 
@@ -922,8 +934,8 @@
     * ฟังก์ชันสำหรับจัดการการเข้าสู่ระบบ (Sign In)
     */
    async function handleSignIn() {
-    const email = document.getElementById('siEmail').value.trim();
-    const password = document.getElementById('siPassword').value.trim();
+    const email = document.getElementById('siEmail')?.value.trim();
+    const password = document.getElementById('siPassword')?.value.trim();
 
     if (!email || !password) {
      alert("กรุณากรอกอีเมลและรหัสผ่าน");
@@ -942,11 +954,20 @@
      }
 
      alert("เข้าสู่ระบบสำเร็จ");
-     document.getElementById('siEmail').value = '';
-     document.getElementById('siPassword').value = '';
+     const siEmail = document.getElementById('siEmail');
+     const siPassword = document.getElementById('siPassword');
+     if (siEmail) siEmail.value = '';
+     if (siPassword) siPassword.value = '';
+
 
      // อัพเดท UI และตรวจสอบสถานะผู้ใช้
      await checkUser();
+     
+     // เรียกโหลดข้อมูล Dashboard ทันทีที่เข้าสู่ระบบสำเร็จ
+     if (currentUserId) {
+        fetchDashboardData();
+     }
+
 
     } catch (err) {
      console.error("Unexpected Sign In Error:", err);
@@ -969,11 +990,11 @@
     updateUI(null);
     currentUserId = null;
     currentBranchName = '-';
-    // Clear KPIs เมื่อ Sign Out
-    document.getElementById('kpiSalesToday').textContent = '-';
-    document.getElementById('kpiSalesMonth').textContent = '-';
-    document.getElementById('kpiStockTotal').textContent = '-';
-    document.getElementById('kpiStockZero').textContent = '-';
+    // Clear KPIs เมื่อ Sign Out (ใช้ safeUpdateKpi)
+    safeUpdateKpi('kpiSalesToday', '-');
+    safeUpdateKpi('kpiSalesMonth', '-');
+    safeUpdateKpi('kpiStockTotal', '-');
+    safeUpdateKpi('kpiStockZero', '-');
     renderTopMenuTable([]);
     renderRecentSalesTable([]);
    }
@@ -995,15 +1016,23 @@
    }
 
    function showRegisterForm() {
-    document.getElementById('formSignIn').style.display = 'none';
-    document.getElementById('formRegister').style.display = 'block';
-    document.getElementById('authTitle').innerText = 'Create Account';
+    const formSignIn = document.getElementById('formSignIn');
+    const formRegister = document.getElementById('formRegister');
+    const authTitle = document.getElementById('authTitle');
+
+    if (formSignIn) formSignIn.style.display = 'none';
+    if (formRegister) formRegister.style.display = 'block';
+    if (authTitle) authTitle.innerText = 'Create Account';
    }
 
    function showSignInForm() {
-    document.getElementById('formSignIn').style.display = 'block';
-    document.getElementById('formRegister').style.display = 'none';
-    document.getElementById('authTitle').innerText = 'Sign In';
+    const formSignIn = document.getElementById('formSignIn');
+    const formRegister = document.getElementById('formRegister');
+    const authTitle = document.getElementById('authTitle');
+
+    if (formSignIn) formSignIn.style.display = 'block';
+    if (formRegister) formRegister.style.display = 'none';
+    if (authTitle) authTitle.innerText = 'Sign In';
    }
 
    // --- Event Listeners: จัดการเมื่อหน้าโหลดและมีการคลิก ---
@@ -1011,8 +1040,7 @@
    document.addEventListener('DOMContentLoaded', function () {
     // 1. โหลดข้อมูลสำคัญเมื่อหน้าเว็บพร้อม
     loadBranches();
-    checkUser(); // ตรวจสอบสถานะการเข้าสู่ระบบ
-
+    
     // 2. Event Listeners
     const btnOpenAuth = document.getElementById('btnOpenAuth');
     const authModal = document.getElementById('authModal');
@@ -1021,7 +1049,7 @@
     const btnRegisterNow = document.getElementById('btnRegisterNow');
     const btnSignInNow = document.getElementById('btnSignInNow');
     const btnSignOut = document.getElementById('btnSignOut');
-
+    const refreshBtn = document.getElementById('refreshBtn'); // เพิ่มปุ่ม Refresh
 
     if (btnOpenAuth) {
      btnOpenAuth.addEventListener('click', openAuthModal);
@@ -1055,8 +1083,27 @@
      btnSignOut.addEventListener('click', handleSignOut);
     }
 
+    if (refreshBtn) { // เพิ่ม Event Listener สำหรับปุ่ม Refresh
+        refreshBtn.addEventListener('click', function() {
+            if (currentUserId) {
+                fetchDashboardData();
+            } else {
+                alert("กรุณาเข้าสู่ระบบก่อน");
+            }
+        });
+    }
+    
+    // 3. ตรวจสอบผู้ใช้และโหลดข้อมูล
+    checkUser().then(() => {
+        // ถ้าผู้ใช้เข้าสู่ระบบอยู่แล้ว โหลดข้อมูล Dashboard ทันทีที่ DOM พร้อม
+        if (currentUserId) {
+             fetchDashboardData();
+        }
+    });
+
     // ซ่อนปุ่ม Sign Out เริ่มต้น
-    document.getElementById('btnSignOut').style.display = 'none';
+    const initialSignOut = document.getElementById('btnSignOut');
+    if (initialSignOut) initialSignOut.style.display = 'none';
    });
  </script>
 </body>
