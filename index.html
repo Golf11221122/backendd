@@ -524,7 +524,7 @@
      row.cells[1].classList.add('right');
     });
    }
-   
+
    // 🚩 START: 1. ฟังก์ชันใหม่สำหรับแสดงรายการขายล่าสุด
    /**
     * ฟังก์ชันสำหรับแสดงรายการขายล่าสุด
@@ -561,18 +561,20 @@
    /**
     * ฟังก์ชันสำหรับดึงข้อมูล KPI, Top Menu, และ Inventory 
     * โดยอิงตามสาขาปัจจุบันของผู้ใช้ที่เข้าสู่ระบบ
-    * @param {object} user - Supabase user object ที่ดึงมาจาก checkUser
     */
-   async function fetchDashboardData(user) {
-    // 🚩 เปลี่ยนเงื่อนไขการตรวจสอบ: ใช้ user object ที่ส่งมาแทน global variables
+   async function fetchDashboardData() {
+    // 🚩 แก้ไข: ดึงข้อมูล User/Session ล่าสุดและ Branch ID ที่ถูกต้อง
+    const { data: { session } } = await supabaseClient.auth.getSession();
+    const user = session?.user;
+    
     if (!user) {
-        console.error("User object is missing for dashboard data fetch.");
-        return;
+     console.warn("User session is missing. Cannot fetch data.");
+     return;
     }
-    
-    // กำหนด Branch ID ที่จะใช้กรอง (ดึงจาก user object ที่ส่งมา)
+
+    // กำหนด Branch ID ที่จะใช้กรอง (ดึงจาก User object ล่าสุด)
     const staffBranchId = user.user_metadata?.branch_id;
-    
+
     // --- โค้ดที่เพิ่มสำหรับการดีบัก ---
     console.log("Branch ID ที่ใช้กรอง:", staffBranchId);
     // ---------------------------------
@@ -596,12 +598,13 @@
 
     try {
      // --- 1. ดึงยอดขายวันนี้ และยอดขายเดือนนี้จาก 'receipts' (ใช้สำหรับ KPI & Top Menu ID) ---
+     // 🚩 เพิ่ม payment_method เพื่อให้ renderRecentSalesTable ทำงาน
      const { data: receiptsData, error: errReceipts } = await supabaseClient
       .from('receipts')
-      .select('id, total_amount, created_at, payment_method') // เพิ่ม payment_method
+      .select('id, total_amount, created_at, payment_method')
       .eq('branch_id', staffBranchId)
       .gte('created_at', firstDayOfMonth)
-      .order('created_at', { ascending: false }); // เพิ่มการเรียงลำดับเพื่อใช้ใน Recent Sales
+      .order('created_at', { ascending: false }); // เรียงเพื่อใช้ใน Recent Sales
 
      if (errReceipts) throw errReceipts;
 
@@ -662,9 +665,72 @@
      }
 
      // 🚩 START: 2. ดึงรายการล่าสุดจาก 'receipts' (Recent Sales)
-     // ใช้ข้อมูล receipt ที่ดึงมาแล้ว (receiptsData) และจำกัดแค่ 5 รายการแรกตามที่ order ไว้
+     // ใช้ข้อมูล receiptsData ที่ดึงมาแล้ว (ซึ่งมีการเรียงและมีข้อมูลครบ) และจำกัดแค่ 5 รายการแรก
      renderRecentSalesTable(receiptsData.slice(0, 5));
      // 🚩 END: 2. ดึงรายการล่าสุดจาก 'receipts' (Recent Sales)
+
+
+     // 🚩 START: 3. วาดกราฟยอดขาย (7 วันย้อนหลัง) - เพิ่มการตรวจสอบ element เพื่อแก้ TypeError
+     const salesChartElement = document.getElementById('salesChart');
+
+     if (salesChartElement) { // แก้ไข: ตรวจสอบว่า Element มีอยู่จริง
+         // ** สร้างตัวอย่างข้อมูลยอดขายย้อนหลัง (สมมติ) **
+         // ข้อมูลจริงควรถูกดึงตามช่วงวันที่ แต่ตอนนี้ใช้ข้อมูลสมมติ 7 วัน
+         const last7DaysData = [
+             { date: '2025-11-23', total: 12000 },
+             { date: '2025-11-24', total: 15500 },
+             { date: '2025-11-25', total: 11000 },
+             { date: '2025-11-26', total: 18000 },
+             { date: '2025-11-27', total: 9500 },
+             { date: '2025-11-28', total: 22000 },
+             { date: '2025-11-29', total: totalSalesToday } // ใช้ยอดขายวันนี้
+         ];
+
+         const labels = last7DaysData.map(d => new Date(d.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }));
+         const dataValues = last7DaysData.map(d => d.total);
+
+         // ตรวจสอบว่ามี Chart instance เก่าอยู่ไหม (เพื่อป้องกันการวาดซ้ำเมื่อ Refresh)
+         if (window.salesChartInstance) {
+             window.salesChartInstance.destroy();
+         }
+
+         const ctx = salesChartElement.getContext('2d');
+         window.salesChartInstance = new Chart(ctx, {
+             type: 'line',
+             data: {
+                 labels: labels,
+                 datasets: [{
+                     label: 'ยอดขาย (฿)',
+                     data: dataValues,
+                     borderColor: '#10b981', // success color
+                     backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                     tension: 0.3,
+                     fill: true
+                 }]
+             },
+             options: {
+                 responsive: true,
+                 maintainAspectRatio: false,
+                 scales: {
+                     y: {
+                         beginAtZero: true,
+                         grid: { color: 'rgba(255,255,255,0.1)' },
+                         ticks: { color: '#f3f4f6' }
+                     },
+                     x: {
+                         grid: { display: false },
+                         ticks: { color: '#f3f4f6' }
+                     }
+                 },
+                 plugins: {
+                     legend: { display: false }
+                 }
+             }
+         });
+     } else {
+         console.warn("Element 'salesChart' not found. Skipping chart rendering.");
+     }
+     // 🚩 END: 3. วาดกราฟยอดขาย (7 วันย้อนหลัง)
 
 
     } catch (error) {
@@ -675,7 +741,7 @@
      document.getElementById('kpiStockTotal').textContent = 'Error';
      document.getElementById('kpiStockZero').textContent = 'Error';
      renderRecentSalesTable([]); // เคลียร์และแสดงว่าไม่มีข้อมูล
-     // 🚩 ลบ alert ที่ก่อให้เกิด popup ซ้ำๆ
+     // ลบ alert ที่ก่อให้เกิด popup ซ้ำๆ
     }
    }
 
@@ -693,21 +759,17 @@
 
      if (branchId) {
       branchName = await fetchBranchName(branchId);
-      currentBranchName = branchName; // <--- แก้ไข: กำหนดค่า Global ให้ชัดเจน
+      currentBranchName = branchName;
      }
-     
      updateUI(user, branchName);
 
-     // **เรียกฟังก์ชันโหลด Dashboard Data โดยส่ง user object ไปด้วย**
-     if (currentUserId && currentBranchName !== '-') { // เช็คซ้ำก่อนเรียก
-         fetchDashboardData(user);
-     }
-
+     // **เรียกฟังก์ชันโหลด Dashboard Data**
+     fetchDashboardData();
 
     } else {
      updateUI(null);
-     currentUserId = null;
-     currentBranchName = '-'; // <--- แก้ไข: กำหนดค่า Global เป็นค่าเริ่มต้น
+     currentUserId = null; // 🚩 แก้ไข: ล้างค่า Global เมื่อ Sign Out
+     currentBranchName = '-'; // 🚩 แก้ไข: ล้างค่า Global เมื่อ Sign Out
     }
    }
 
