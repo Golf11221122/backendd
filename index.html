@@ -571,6 +571,9 @@
 
     // กำหนด Branch ID ที่จะใช้กรอง 
     const staffBranchId = supabaseClient.auth.user()?.user_metadata?.branch_id;
+    // --- โค้ดที่เพิ่มสำหรับการดีบัก ---
+    console.log("Branch ID ที่ใช้กรอง:", staffBranchId);
+    // ---------------------------------
     if (!staffBranchId) {
      console.error("Branch ID not found in user metadata.");
      return;
