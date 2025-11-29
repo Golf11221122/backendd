@@ -698,66 +698,88 @@
      renderRecentSalesTable(receiptsData.slice(0, 5));
 
 
-     // 5. วาดกราฟยอดขาย (7 วันย้อนหลัง)
+    // ... โค้ดส่วนบนของ fetchDashboardData() ...
+     // 4. ดึงรายการล่าสุดจาก 'receipts' (Recent Sales)
+     renderRecentSalesTable(receiptsData.slice(0, 5));
+
+
+     // 5. วาดกราฟยอดขาย (7 วันย้อนหลัง) <<<<<<<<<<< แก้ไขโค้ดส่วนนี้ >>>>>>>>>>>
      const salesChartElement = document.getElementById('salesChart');
 
-     if (salesChartElement) { // ตรวจสอบว่า Element มีอยู่จริง
-         // ** สร้างตัวอย่างข้อมูลยอดขายย้อนหลัง (สมมติ) **
-         const last7DaysData = [
-             { date: '2025-11-23', total: 12000 },
-             { date: '2025-11-24', total: 15500 },
-             { date: '2025-11-25', total: 11000 },
-             { date: '2025-11-26', total: 18000 },
-             { date: '2025-11-27', total: 9500 },
-             { date: '2025-11-28', total: 22000 },
-             { date: '2025-11-29', total: totalSalesToday } // ใช้ยอดขายวันนี้
-         ];
+     if (salesChartElement) {
+        // --- ส่วนที่แก้ไข: สร้างข้อมูลจริง 7 วันย้อนหลัง ---
+        const salesByDay = {};
+        const today = new Date();
+        today.setHours(0, 0, 0, 0); // กำหนดให้เป็น 00:00:00
 
-         const labels = last7DaysData.map(d => new Date(d.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }));
-         const dataValues = last7DaysData.map(d => d.total);
+        // เตรียมโครงสร้างข้อมูลสำหรับ 7 วัน
+        for (let i = 0; i < 7; i++) {
+            const date = new Date(today);
+            date.setDate(today.getDate() - i);
+            const dateKey = date.toISOString().split('T')[0];
+            salesByDay[dateKey] = 0;
+        }
 
-         // ตรวจสอบว่ามี Chart instance เก่าอยู่ไหม
-         if (window.salesChartInstance) {
-             window.salesChartInstance.destroy();
-         }
+        // รวมยอดขายตามวันที่จากข้อมูล receipts ที่ดึงมา
+        receiptsData.forEach(receipt => {
+            const receiptDate = receipt.created_at.split('T')[0];
+            if (salesByDay.hasOwnProperty(receiptDate)) {
+                salesByDay[receiptDate] += receipt.total_amount;
+            }
+        });
 
-         const ctx = salesChartElement.getContext('2d');
-         window.salesChartInstance = new Chart(ctx, {
-             type: 'line',
-             data: {
-                 labels: labels,
-                 datasets: [{
-                     label: 'ยอดขาย (฿)',
-                     data: dataValues,
-                     borderColor: '#10b981', // success color
-                     backgroundColor: 'rgba(16, 185, 129, 0.2)',
-                     tension: 0.3,
-                     fill: true
-                 }]
-             },
-             options: {
-                 responsive: true,
-                 maintainAspectRatio: false,
-                 scales: {
-                     y: {
-                         beginAtZero: true,
-                         grid: { color: 'rgba(255,255,255,0.1)' },
-                         ticks: { color: '#f3f4f6' }
-                     },
-                     x: {
-                         grid: { display: false },
-                         ticks: { color: '#f3f4f6' }
-                     }
-                 },
-                 plugins: {
-                     legend: { display: false }
-                 }
-             }
-         });
-     } else {
-         console.warn("Element 'salesChart' not found. Skipping chart rendering.");
-     }
+        // จัดเรียงข้อมูลให้เป็น 7 วันย้อนหลังจากเก่าไปใหม่
+        const last7DaysData = Object.entries(salesByDay)
+            .sort((a, b) => new Date(a[0]) - new Date(b[0])) // เรียงจากวันที่เก่าไปใหม่
+            .map(([date, total]) => ({ date, total }));
+        
+        // --- สิ้นสุดส่วนแก้ไขข้อมูล ---
 
+        const labels = last7DaysData.map(d => new Date(d.date).toLocaleDateString('th-TH', { day: 'numeric', month: 'short' }));
+        const dataValues = last7DaysData.map(d => d.total);
+
+        // วาดกราฟต่อ ...
+        if (window.salesChartInstance) {
+            window.salesChartInstance.destroy();
+        }
+
+        const ctx = salesChartElement.getContext('2d');
+        window.salesChartInstance = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'ยอดขาย (฿)',
+                    data: dataValues,
+                    borderColor: '#10b981',
+                    backgroundColor: 'rgba(16, 185, 129, 0.2)',
+                    tension: 0.3,
+                    fill: true
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(255,255,255,0.1)' },
+                        ticks: { color: '#f3f4f6' }
+                    },
+                    x: {
+                        grid: { display: false },
+                        ticks: { color: '#f3f4f6' }
+                    }
+                },
+                plugins: {
+                    legend: { display: false }
+                }
+            }
+        });
+    } else {
+        console.warn("Element 'salesChart' not found. Skipping chart rendering.");
+    }
+// ... โค้ดส่วนล่างของ fetchDashboardData() ...
 
     } catch (error) {
      console.error("Error fetching dashboard data:", error);
