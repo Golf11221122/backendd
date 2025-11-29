@@ -589,7 +589,7 @@
     // ตรวจสอบขั้นที่ 1: ต้องมี user และ session
     if (!user) {
      console.warn("User session is missing or invalid. Cannot fetch data.");
-     // ตั้งค่า KPI เป็น '-' เพื่อให้ผู้ใช้รู้ว่าไม่ได้เข้าสู่ระบบ
+     // ตั้งค่า KPI เป็น '-' เพื่อให้ผู้ใช้รู้ว่าไม่ได้เข้าสู่ระบบ (ใช้ safeUpdateKpi)
      safeUpdateKpi('kpiSalesToday', '-');
      safeUpdateKpi('kpiSalesMonth', '-');
      safeUpdateKpi('kpiStockTotal', '-');
