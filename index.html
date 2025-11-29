@@ -561,21 +561,23 @@
    /**
     * ฟังก์ชันสำหรับดึงข้อมูล KPI, Top Menu, และ Inventory 
     * โดยอิงตามสาขาปัจจุบันของผู้ใช้ที่เข้าสู่ระบบ
+    * @param {object} user - Supabase user object ที่ดึงมาจาก checkUser
     */
-   async function fetchDashboardData() {
-    // ตรวจสอบว่ามี User ID และ Branch Name หรือไม่
-    if (!currentUserId || !currentBranchName) {
-     console.warn("User is not fully signed in or branch info is missing.");
-     return;
+   async function fetchDashboardData(user) {
+    if (!user) {
+        console.error("User object is missing for dashboard data fetch.");
+        return;
     }
-
-    // กำหนด Branch ID ที่จะใช้กรอง 
-    const staffBranchId = supabaseClient.auth.user()?.user_metadata?.branch_id;
+    
+    // กำหนด Branch ID ที่จะใช้กรอง (ดึงจาก user object ที่ส่งมา)
+    const staffBranchId = user.user_metadata?.branch_id;
+    
     // --- โค้ดที่เพิ่มสำหรับการดีบัก ---
     console.log("Branch ID ที่ใช้กรอง:", staffBranchId);
     // ---------------------------------
+    
     if (!staffBranchId) {
-     console.error("Branch ID not found in user metadata.");
+     console.error("Branch ID not found in user metadata. Cannot fetch data.");
      return;
     }
 
@@ -595,9 +597,10 @@
      // --- 1. ดึงยอดขายวันนี้ และยอดขายเดือนนี้จาก 'receipts' (ใช้สำหรับ KPI & Top Menu ID) ---
      const { data: receiptsData, error: errReceipts } = await supabaseClient
       .from('receipts')
-      .select('id, total_amount, created_at')
+      .select('id, total_amount, created_at, payment_method') // เพิ่ม payment_method
       .eq('branch_id', staffBranchId)
-      .gte('created_at', firstDayOfMonth);
+      .gte('created_at', firstDayOfMonth)
+      .order('created_at', { ascending: false }); // เพิ่มการเรียงลำดับเพื่อใช้ใน Recent Sales
 
      if (errReceipts) throw errReceipts;
 
@@ -658,16 +661,8 @@
      }
 
      // 🚩 START: 2. ดึงรายการล่าสุดจาก 'receipts' (Recent Sales)
-     const { data: recentSales, error: errRecent } = await supabaseClient
-      .from('receipts')
-      .select('created_at, total_amount, payment_method') // 👈 เลือกเฉพาะคอลัมน์ที่ต้องการ
-      .eq('branch_id', staffBranchId)
-      .order('created_at', { ascending: false }) // 👈 เรียงจากใหม่ไปเก่า
-      .limit(5); // 👈 จำกัด 5 รายการล่าสุด
-
-     if (errRecent) throw errRecent;
-
-     renderRecentSalesTable(recentSales);
+     // ใช้ข้อมูล receipt ที่ดึงมาแล้ว (receiptsData) และจำกัดแค่ 5 รายการแรกตามที่ order ไว้
+     renderRecentSalesTable(receiptsData.slice(0, 5));
      // 🚩 END: 2. ดึงรายการล่าสุดจาก 'receipts' (Recent Sales)
 
 
@@ -701,13 +696,15 @@
      }
      updateUI(user, branchName);
 
-     // **เรียกฟังก์ชันโหลด Dashboard Data**
-     fetchDashboardData();
+     // **เรียกฟังก์ชันโหลด Dashboard Data โดยส่ง user object ไปด้วย**
+     fetchDashboardData(user);
 
     } else {
      updateUI(null);
     }
    }
+
+   // ... (ส่วนที่เหลือของโค้ดเหมือนเดิม)
 
    /**
     * ฟังก์ชันเพื่อโหลดข้อมูลสาขาจากตาราง 'branches' ของ Supabase
